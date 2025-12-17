@@ -1,14 +1,15 @@
-# Hardware Inventory - Desktop
+# Hardware Inventory
 
-**Repository:** Desktop computer hardware documentation and analysis
+**Repository:** Complete hardware documentation for all systems (Desktop, NAS, Infrastructure)
 **Owner:** sleszgit
 **Created:** 12.12.2025
+**Last Updated:** 17.12.2025
 
 ---
 
 ## Overview
 
-This repository contains comprehensive hardware documentation, analysis, and troubleshooting guides for my desktop computer (DESKTOP24).
+This repository contains comprehensive hardware documentation, analysis, and troubleshooting guides for all systems including desktop computer (DESKTOP24) and NAS devices (918 NAS, second Synology NAS, UGREEN NAS).
 
 ---
 
@@ -26,6 +27,16 @@ Desktop PC (DESKTOP24) hardware documentation:
   - Maintenance schedules
   - Troubleshooting guides
   - Value assessment
+
+### `/nas/`
+NAS devices hardware documentation:
+
+- **918-NAS-ANALYSIS.md** - Synology DS918+ inventory and health status
+  - Complete disk specifications
+  - Power-on hours and health metrics
+  - RAID configuration
+  - Storage capacity breakdown
+  - Migration planning data
 
 ---
 
@@ -49,6 +60,27 @@ Desktop PC (DESKTOP24) hardware documentation:
 
 ---
 
+**918 NAS** - Synology DS918+ Network Attached Storage
+
+| Component | Specification |
+|-----------|---------------|
+| **Model** | Synology DiskStation DS918+ |
+| **OS** | DSM 7.2.2 (Build 72806, Nov 10 2025) |
+| **CPU** | Intel Celeron J3455 @ 1.50GHz (4 cores) |
+| **RAM** | 16GB |
+| **Storage Disks** | 4x SATA drives (56TB raw capacity) |
+| **Disk Details** | Slot 1: Seagate IronWolf PRO 16TB (14,116 hrs) |
+| | Slot 2: Seagate IronWolf PRO 14TB (30,459 hrs) |
+| | Slot 3: WD Red Pro 10TB (40,646 hrs) |
+| | Slot 4: Seagate 14TB (14,124 hrs) |
+| **Total Capacity** | 36TB across 3 volumes (25-44% used) |
+| **Network** | 1Gbps Gigabit Ethernet |
+| **Health Status** | ✅ All disks healthy - SMART passed |
+
+**Health Assessment:** ⭐⭐⭐⭐ (4/5) - Functional, aging disk in slot 3 (4.6 yrs) candidate for retirement
+
+---
+
 ## Related Repositories
 
 - **Homelab Hardware:** https://github.com/Sleszgit/homelab-hardware
@@ -58,17 +90,20 @@ Desktop PC (DESKTOP24) hardware documentation:
 
 ## Maintenance Status
 
-✅ **Hardware Analysis:** Complete
-✅ **Thermal Management:** In progress (BIOS configuration pending)
-⏳ **Performance Benchmarking:** Pending
+✅ **DESKTOP24 Analysis:** Complete
+✅ **918 NAS Inventory:** Complete (17.12.2025)
+⏳ **Second Synology NAS:** Pending data collection
+⏳ **UGREEN NAS:** Pending data collection
+⏳ **Migration Plan:** Awaiting complete inventory
 
 ---
 
 ## Last Updated
 
-**Date:** 12.12.2025
+**Date:** 17.12.2025
 **Updated By:** Claude Code (ugreen-ai-terminal)
-**Status:** Active documentation
+**Status:** Active documentation - NAS inventory in progress
+**Recent Changes:** Added 918 NAS disk health and power-on hours data
 
 ---
 
