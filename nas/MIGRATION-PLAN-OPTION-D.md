@@ -8,13 +8,14 @@
 
 ## Overview
 
-This plan leverages the homelab Proxmox (192.168.40.40) as a staging area to consolidate 918 & 920 data while maximizing disk reuse across your infrastructure.
+This plan leverages the homelab Proxmox (192.168.40.40) as a staging area to consolidate 918 & 920 data while reusing only 918 healthy disks.
 
 ### Key Principles
 - ✅ Zero data loss - all content preserved
-- ✅ Maximize disk reuse (healthy 918 disks → homelab)
+- ✅ Maximize disk reuse (healthy 918 disks → homelab only)
 - ✅ Free up UGREEN for 920 data temporarily
-- ✅ Migrate critical services (nginx) to UGREEN
+- ✅ **Nginx migration as FINAL step** - 24/7 service, zero downtime
+- ✅ 920 disks decommissioned (not reused) - other disks reserved for future use
 - ✅ Graceful decommissioning of both NAS devices
 
 ---
@@ -49,18 +50,21 @@ This plan leverages the homelab Proxmox (192.168.40.40) as a staging area to con
 - System/backup data
 
 ### 920 NAS (192.168.40.20) - SOURCE #2 (CRITICAL)
-**Disks (for future reference, not yet moved):**
-- Slots 1-2: Seagate IronWolf PRO 20TB (19,047 hrs, 2.2 yrs) ✅ **REUSE**
-- Slots 3-4: Seagate IronWolf PRO 16TB (30,282 hrs, 3.5 yrs) ✅ **REUSE**
+**Disks (to be decommissioned - NOT reused):**
+- Slots 1-2: Seagate IronWolf PRO 20TB (19,047 hrs, 2.2 yrs)
+- Slots 3-4: Seagate IronWolf PRO 16TB (30,282 hrs, 3.5 yrs)
+- **Status:** Reserved for future use; no immediate reuse planned
 
 **Data to preserve:** 30TB (URGENT - volume 95% full)
 - Seriale 2023 (TV series): 17TB
 - Filmy920 (movies): 13TB
 - Docker/system files: minimal
 
-**Services to migrate:**
-- **VITAL:** Nginx web server
-- **Optional:** Plex Media Server, Docker containers (can be disregarded)
+**Services to migrate (LAST STEP - must be final phase):**
+- **VITAL (24/7):** Nginx web server → **Migrate as FINAL step only**
+  - Cannot have extended downtime
+  - Must verify UGREEN nginx fully operational before 920 nginx stops
+- **Optional (can disregard):** Plex Media Server, Docker containers, LogCenter, Git
 
 ---
 
@@ -243,47 +247,183 @@ du -sh /storage/Media/920-*
 
 ---
 
-### PHASE 7: Migrate Nginx Service from 920 to UGREEN Proxmox (Day 12)
+### PHASE 7: Migrate Nginx Service from 920 to UGREEN Proxmox (Day 13 - FINAL STEP)
+
+⚠️ **CRITICAL:** This is the LAST phase before decommissioning. Nginx runs 24/7 and cannot have extended downtime.
 
 **Service Details:**
-- **Current location:** 920 NAS
-- **Service:** Nginx web server (VITAL)
+- **Current location:** 920 NAS (running 24/7)
+- **Service:** Nginx web server (VITAL PRODUCTION SERVICE)
 - **Destination:** UGREEN Proxmox LXC 102
+- **Strategy:** Prepare on UGREEN, then switch with minimal downtime
 
-**Migration Steps:**
+**Pre-Migration Checklist (Days 1-12):**
+- ✅ All 920 data transferred to UGREEN (Phases 1-6 complete)
+- ✅ UGREEN stable and operational
+- ✅ Homelab receiving and archiving 918 data successfully
+- ✅ Documentation of all nginx configurations backed up
 
-1. **Backup current nginx config from 920:**
+**Migration Steps (Execution Day):**
+
+**Step 1: Backup nginx configuration from 920 (24 hours before cutover)**
 ```bash
+# On 920 NAS
 ssh root@192.168.40.20
 cd /etc/nginx
-tar czf nginx-config-backup.tar.gz conf.d/ sites-enabled/ sites-available/ nginx.conf
-# Copy to UGREEN for reference
+tar czf nginx-config-backup-$(date +%Y%m%d).tar.gz \
+  conf.d/ \
+  sites-enabled/ \
+  sites-available/ \
+  nginx.conf \
+  /etc/ssl/certs/ \  # Include any SSL certs
+  /etc/ssl/private/
+
+# Copy to safe location (UGREEN or local machine)
+scp nginx-config-backup-*.tar.gz root@192.168.40.60:/root/
 ```
 
-2. **On UGREEN LXC 102, install nginx:**
+**Step 2: Document current nginx configuration**
 ```bash
+# On 920 - save running config
+nginx -T > nginx-running-config.txt  # Full config dump
+nginx -s reload  # Test that config is valid
+
+# Also document:
+# - Any custom modules or plugins
+# - SSL certificates and renewal process
+# - Application backends nginx proxies to
+# - Access/error log locations
+```
+
+**Step 3: Prepare nginx on UGREEN (2-3 hours before cutover)**
+```bash
+# On UGREEN LXC 102
 apt update
 apt install nginx -y
+
+# Extract backed-up configs
+cd /root
+tar xzf nginx-config-backup-*.tar.gz -C /etc/nginx/
+
+# Test configuration
+nginx -t
+
+# Start nginx
 systemctl start nginx
 systemctl enable nginx
 ```
 
-3. **Restore/configure nginx on UGREEN:**
-   - Copy backed-up configs
-   - Update paths if needed
-   - Test configuration: `nginx -t`
-   - Reload: `systemctl reload nginx`
+**Step 4: Test UGREEN nginx (1 hour before cutover)**
+```bash
+# On UGREEN
+# Test that it's running
+curl -I http://localhost
+systemctl status nginx
 
-4. **Update DNS/network:**
-   - If nginx was accessed via 920's IP (192.168.40.20), update clients to use UGREEN (192.168.40.81)
-   - Update any firewall rules
-   - Test connectivity
+# Check logs
+tail -f /var/log/nginx/access.log &
+tail -f /var/log/nginx/error.log &
 
-5. **Verify on 920:**
-   - Stop nginx on 920 to confirm traffic switches to UGREEN
-   - Monitor for issues
+# Monitor resources during test
+# - CPU: should be low (~5-10%)
+# - Memory: note baseline
+# - Network: check connectivity
+```
 
-**Estimated Duration:** 2-4 hours
+**Step 5: Network cutover (MINIMAL DOWNTIME WINDOW)**
+
+**Option A: DNS-based cutover (RECOMMENDED - zero downtime possible)**
+```bash
+# If nginx is accessed via DNS:
+# 1. Update DNS to point to UGREEN IP (192.168.40.81) instead of 920 (192.168.40.20)
+# 2. Lower TTL beforehand (12-24 hours before) so clients switch faster
+# 3. Keep 920 nginx running during DNS propagation (typically 5-10 minutes)
+# 4. Once verified on UGREEN, stop 920 nginx
+```
+
+**Option B: IP-based cutover (if direct IP used)**
+```bash
+# If clients connect to 192.168.40.20 directly:
+# 1. Backup 920 one final time
+# 2. Create maintenance page on 920 (last 5 mins)
+# 3. Stop nginx on 920 at agreed cutover time
+# 4. Update firewall/LB to point to UGREEN
+# 5. Start requests on UGREEN
+# Estimated downtime: 2-5 minutes
+```
+
+**Step 6: Verify cutover succeeded**
+```bash
+# Monitor both systems during cutover
+# On UGREEN: watch access logs for incoming requests
+tail -f /var/log/nginx/access.log
+
+# On 920: confirm traffic has stopped
+tail -f /var/log/nginx/access.log  # Should show no new entries
+
+# From client machines: test connectivity
+curl http://your-nginx-service/
+# Should reach UGREEN copy without issues
+```
+
+**Step 7: Post-cutover monitoring (2-4 hours)**
+```bash
+# Monitor UGREEN nginx:
+# - Error rate (should be 0%)
+# - Response times (should be normal)
+# - Memory usage (should be stable)
+# - CPU usage (should be normal)
+
+# Check application backends:
+# - All upstream services responding
+# - SSL certificates valid
+# - No TLS errors
+
+# If issues detected:
+# - Switch back to 920 temporarily (restore DNS/LB)
+# - Debug on UGREEN while 920 serving traffic
+# - Fix and try again
+```
+
+**Step 8: Graceful shutdown of 920 nginx**
+```bash
+# Once UGREEN verified for 1-2 hours:
+# On 920
+systemctl stop nginx
+systemctl disable nginx
+
+# Verify no connections
+netstat -an | grep :80
+netstat -an | grep :443
+# Should show no LISTEN or connections
+```
+
+**Estimated Duration:**
+- Preparation: 2-3 hours (Day 12)
+- Execution: 15-30 minutes (cutover window)
+- Verification: 2-4 hours (Day 13)
+- **Total: 4-8 hours spread across 2 days**
+
+**Rollback Plan (If issues detected):**
+```bash
+# Within 1 hour of cutover, if problems:
+# 1. Update DNS/LB back to 920 (if not already done)
+# 2. Restart 920 nginx: systemctl start nginx
+# 3. Verify requests flowing back to 920
+# 4. Debug UGREEN nginx while 920 handles traffic
+# 5. Fix issues on UGREEN
+# 6. Retry cutover when confident
+```
+
+**Success Verification Checklist:**
+- ✅ UGREEN nginx receiving traffic
+- ✅ All requests successful (no 5xx errors)
+- ✅ Response times acceptable
+- ✅ SSL certificates valid
+- ✅ Backend services accessible
+- ✅ Access logs showing activity
+- ✅ 920 nginx stopped (no errors from old service)
+- ✅ Maintain logs for verification (save both configs)
 
 ---
 
@@ -355,7 +495,7 @@ systemctl poweroff
 
 ### Final State
 
-**UGREEN Proxmox (192.168.40.60) - PRIMARY**
+**UGREEN Proxmox (192.168.40.60) - PRIMARY DATA + SERVICES**
 ```
 Storage Pool: "storage" (20TB ZFS mirror)
 ├── 920-Seriale-2023/    (17TB) - TV series
@@ -363,18 +503,35 @@ Storage Pool: "storage" (20TB ZFS mirror)
 Total: 30TB (100% utilized, 0TB free)
 
 Services:
-├── Nginx web server (LXC 102)
-├── NFS mounts to homelab 918 data (if needed)
-└── Plex Media Server (optional, kept or moved)
+├── Nginx web server (LXC 102) - 24/7 production
+├── Optional: Plex Media Server (if moved, else disregard)
+└── All critical services on UGREEN
+
+Disks: 2x Seagate ST22000NT001 20TB (RAID1 mirror)
 ```
 
-**Homelab Proxmox (192.168.40.40) - ARCHIVE**
+**Homelab Proxmox (192.168.40.40) - ARCHIVE & BACKUP**
 ```
 Storage Pool: RAIDZ (44TB raw / ~29TB usable)
 ├── Original disks: 2x WD 10TB (mirror, 6TB used)
 └── 918 migrated disks: 16.5TB (918-Seriale, 918-Filmy, 918-Backups)
 
 Total utilization: ~23TB / 29TB (79%)
+
+Purpose: Long-term archive of 918 content, with RAIDZ redundancy
+```
+
+**920 NAS Hardware: DECOMMISSIONED**
+```
+4x Seagate disks (2x 20TB + 2x 16TB)
+Status: Powered down, removed from rack
+Fate: Reserved for future use (not currently needed)
+```
+
+**918 NAS Hardware: DECOMMISSIONED**
+```
+Status: Powered down, removed from rack
+Disks: 3 moved to homelab, 1 retired (WD 10TB end-of-life)
 ```
 
 ---
@@ -439,19 +596,38 @@ Total utilization: ~23TB / 29TB (79%)
 
 ---
 
+## Flexibility Options During Migration
+
+### 920 Data Backup to Other Locations
+**If 920 storage becomes critically full before migration completes:**
+- User can backup 920 data to external storage/USB drives as temporary measure
+- Does not interfere with main migration plan
+- Allows time for phases 1-6 to complete without rushing
+- Recommended backup targets:
+  - USB external HDD (if available)
+  - Other Proxmox storage (homelab available space)
+  - Temporary network storage
+- **Allows flexibility:** Decommissioning 920 can happen at user's pace while data is safe
+
+### Nginx Migration Timing
+- **Nginx migration MUST be last step** (after all data transferred)
+- Provides buffer time to prepare carefully
+- Allows full testing on UGREEN before cutover
+- Zero downtime achievable with DNS-based approach
+
+---
+
 ## Questions & Next Steps
 
-**Before starting, confirm:**
-1. ✅ Can UGREEN handle 5.67TB + 16.5TB + 30TB = 52TB total?
-   - **Answer:** NO - space issue as documented above
-   - **Mitigation:** Use phased approach (described in plan)
+**Clarifications Confirmed:**
+1. ✅ Nginx: CRITICAL 24/7 service - migrate as FINAL step with careful planning
+2. ✅ 920 disks: NOT reused - reserved for future use, decommissioned with NAS
+3. ✅ 920 urgency: Flexible - can backup to other locations if needed before completion
+4. ✅ 918 disks: 3 healthy disks → homelab RAIDZ, 1 old WD → retire
 
-2. ✅ Can nginx service have brief downtime during migration?
-   - If yes: proceed with Phase 7
-   - If no: plan zero-downtime approach (reverse proxy on homelab temporarily)
-
-3. ✅ 920 volume 1 at critical capacity - start immediately?
-   - **Recommendation:** YES - begin Phase 1 within 24 hours
+**Ready to proceed when:**
+1. Phase 1 can start immediately (complete 918 transfers)
+2. User confirms acceptable cutover window for nginx (will need minimal downtime)
 
 ---
 
