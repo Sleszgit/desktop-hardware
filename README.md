@@ -32,11 +32,19 @@ Desktop PC (DESKTOP24) hardware documentation:
 NAS devices hardware documentation:
 
 - **918-NAS-ANALYSIS.md** - Synology DS918+ inventory and health status
-  - Complete disk specifications
-  - Power-on hours and health metrics
-  - RAID configuration
-  - Storage capacity breakdown
+  - Complete disk specifications (4 disks: 2x Seagate, 1x WD, 1x Seagate)
+  - Power-on hours: 14k-40k hours
+  - Mixed RAID (1x redundant, 2x single)
+  - 36TB storage across 3 volumes (33% utilized)
   - Migration planning data
+
+- **920-NAS-ANALYSIS.md** - Synology DS920+ inventory and health status
+  - Complete disk specifications (4x Seagate: 2x 20TB, 2x 16TB)
+  - Power-on hours: 19k-30k hours
+  - Full RAID1 redundancy on both volumes
+  - 32TB usable storage (94% utilized - **CRITICAL**)
+  - Docker containerization active
+  - Urgent migration recommendations
 
 ---
 
@@ -81,6 +89,29 @@ NAS devices hardware documentation:
 
 ---
 
+**920 NAS** - Synology DS920+ Network Attached Storage
+
+| Component | Specification |
+|-----------|---------------|
+| **Model** | Synology DiskStation DS920+ |
+| **OS** | DSM 7.2.2 (Build 72806, Jul 21 2025) |
+| **CPU** | Intel Celeron J4125 @ 2.00GHz (4 cores) |
+| **RAM** | 19GB |
+| **Storage Disks** | 4x Seagate IronWolf PRO (2x 20TB + 2x 16TB) |
+| **Disk Details** | Slot 1: Seagate IronWolf PRO 20TB (19,047 hrs) |
+| | Slot 2: Seagate IronWolf PRO 20TB (19,047 hrs) |
+| | Slot 3: Seagate IronWolf PRO 16TB (30,282 hrs) |
+| | Slot 4: Seagate IronWolf PRO 16TB (30,282 hrs) |
+| **Total Capacity** | 72TB raw / 32TB usable (RAID1) |
+| **Current Usage** | 30TB (94% full) - **CRITICAL** |
+| **Network** | 1Gbps Gigabit Ethernet |
+| **Health Status** | ✅ All disks healthy - Full RAID1 redundancy |
+| **Services** | Docker containers (Plex, Git, WebStation, etc.) |
+
+**Health Assessment:** ⭐⭐⭐⭐⭐ (5/5) - Premium hardware, **URGENT: Critical storage capacity (95% full on Volume 1)**
+
+---
+
 ## Related Repositories
 
 - **Homelab Hardware:** https://github.com/Sleszgit/homelab-hardware
@@ -92,9 +123,9 @@ NAS devices hardware documentation:
 
 ✅ **DESKTOP24 Analysis:** Complete
 ✅ **918 NAS Inventory:** Complete (17.12.2025)
-⏳ **Second Synology NAS:** Pending data collection
+✅ **920+ NAS Inventory:** Complete (17.12.2025)
 ⏳ **UGREEN NAS:** Pending data collection
-⏳ **Migration Plan:** Awaiting complete inventory
+⏳ **Comprehensive Migration Plan:** Pending UGREEN inventory
 
 ---
 
@@ -102,8 +133,8 @@ NAS devices hardware documentation:
 
 **Date:** 17.12.2025
 **Updated By:** Claude Code (ugreen-ai-terminal)
-**Status:** Active documentation - NAS inventory in progress
-**Recent Changes:** Added 918 NAS disk health and power-on hours data
+**Status:** Active documentation - Both Synology NAS systems fully documented
+**Recent Changes:** Added complete 920+ NAS analysis with critical storage capacity warning
 
 ---
 
